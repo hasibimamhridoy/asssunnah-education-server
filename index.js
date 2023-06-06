@@ -34,21 +34,21 @@ async function run() {
 
     /**
      * ---------------------------------------------------
-     * Task One - SAVED USERS
-     * Save user email and role in DB
+     * Task One - Get the all USERS from data base
+     * TODO : Verify jwt and admin
      * ---------------------------------------------------
      */
-    app.put('/users/:email', async (req, res) => {
-        const email = req.params.email
-        const user = req.body
-        const query = { email: email }
-        const options = { upsert: true }
-        const updateDoc = {
-          $set: user,
-        }
-        const result = await usersCollection.updateOne(query, updateDoc, options)
+    app.get('/users', async (req, res) => {
+        const result = await usersCollection.find().toArray()
         res.send(result)
       })
+
+
+
+
+
+    
+    
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
