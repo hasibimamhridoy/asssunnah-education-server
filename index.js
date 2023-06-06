@@ -30,6 +30,8 @@ async function run() {
     await client.connect();
 
     const usersCollection = client.db("assSunnah").collection("users");
+    const instructorsCollection = client.db("assSunnah").collection("instructors");
+    const classessCollection = client.db("assSunnah").collection("classess");
     
 
     /**
@@ -76,6 +78,20 @@ async function run() {
           },
         }
         const result = await usersCollection.updateOne(query, updateDoc)
+        res.send(result)
+      })
+
+      
+      /**
+     * ---------------------------------------------------
+     * Task For - Get the Instructors
+     * TODO : Verify jwt
+     * ---------------------------------------------------
+     */
+    app.get('/instructors', async (req, res) => {
+
+        const query = {role : "instructor"}
+        const result = await usersCollection.find(query).toArray()
         res.send(result)
       })
 
