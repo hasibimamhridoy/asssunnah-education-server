@@ -236,6 +236,20 @@ async function run() {
         })
 
 
+          /**
+       * ---------------------------------------------------
+       * Task Eleven - Delete the Classess which was added by the self users
+       * TODO : Jwt
+       * ---------------------------------------------------
+       */
+          app.delete('/student/booked/classess/:id', async (req, res) => {
+            const id = req.params.id
+            const query = { _id: new ObjectId(id) }
+            const result = await bookedClassessCollection.deleteOne(query)
+            res.send(result)
+
+        })
+
 
 
 
