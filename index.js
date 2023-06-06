@@ -126,24 +126,20 @@ async function run() {
         app.patch('/admin/instructors/classess/:classId', async (req, res) => {
             const classId = req.params.classId
             const status = req.query.status
-            const feedback = req.query.feedback
+            const feedback = req.body.feedback
             const query = { _id: new ObjectId(classId) }
             let updateDoc = {}
 
-
-            if (feedback && status && status === 'denied') {
-
+            if (feedback) {
+                
                 updateDoc = {
                     $set: {
-                        status: status,
                         feedback: feedback
                     },
                 }
 
                 const result = await classessCollection.updateOne(query, updateDoc)
                 return res.send(result)
-
-                console.log('feedback', feedback, 'status', status);
 
             }
 
