@@ -280,6 +280,25 @@ async function run() {
         })
 
 
+        /**
+       * ---------------------------------------------------
+       * Task Eleven - Get the enrolledd Classess whicj was enrolled self users
+       * TODO : Jwt
+       * ---------------------------------------------------
+       */
+           app.get('/student/payment/history/:email', async (req, res) => {
+            
+            const email = req.params.email
+            const query = { userEmail: email }
+            const sort = {paymentData : -1}
+            const result = await enrolledClassessCollection.find(query).sort(sort).toArray()
+            res.send(result)
+
+        })
+
+     
+
+
 
 
 
