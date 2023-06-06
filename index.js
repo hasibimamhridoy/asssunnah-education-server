@@ -32,6 +32,7 @@ async function run() {
         const usersCollection = client.db("assSunnah").collection("users");
         const classessCollection = client.db("assSunnah").collection("classess");
         const bookedClassessCollection = client.db("assSunnah").collection("bookedClassess");
+        const enrolledClassessCollection = client.db("assSunnah").collection("EnrolledClassess");
 
 
         /**
@@ -238,7 +239,7 @@ async function run() {
 
           /**
        * ---------------------------------------------------
-       * Task Eleven - Delete the Classess which was added by the self users
+       * Task Thirteen - Delete the Classess which was added by the self users
        * TODO : Jwt
        * ---------------------------------------------------
        */
@@ -248,6 +249,34 @@ async function run() {
             const result = await bookedClassessCollection.deleteOne(query)
             res.send(result)
 
+        })
+
+
+          /**
+       * ---------------------------------------------------
+       * Task Eleven - Get the enrolledd Classess whicj was enrolled self users
+       * TODO : Jwt
+       * ---------------------------------------------------
+       */
+          app.get('/student/enrolled/classess/:email', async (req, res) => {
+            
+            const email = req.params.email
+            const query = { userEmail: email }
+            const result = await enrolledClassessCollection.find(query).toArray()
+            res.send(result)
+
+        })
+
+
+        /**
+      * ---------------------------------------------------
+      * Task Fourteen - when user payment complete then it will work and he enrolled the classess.
+      * ---------------------------------------------------
+      */
+          app.post('/student/enrolled/classess', async (req, res) => {
+            const classInformation = req.body
+            const result = await enrolledClassessCollection.insertOne(classInformation)
+            res.send(result)
         })
 
 
