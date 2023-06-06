@@ -17,105 +17,104 @@ const uri = `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASS}@ass
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
+    serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+    }
 });
 
 async function run() {
-  try {
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    try {
+        // Connect the client to the server	(optional starting in v4.7)
+        await client.connect();
 
-    const usersCollection = client.db("assSunnah").collection("users");
-    const classessCollection = client.db("assSunnah").collection("classess");
-    
-
-    /**
-     * ---------------------------------------------------
-     * Task One - Get the all USERS from data base
-     * TODO : Verify jwt and admin
-     * ---------------------------------------------------
-     */
-    app.get('/users', async (req, res) => {
-        const result = await usersCollection.find().toArray()
-        res.send(result)
-      })
-
-       /**
-     * ---------------------------------------------------
-     * Task Two - SAVED USERS
-     * ---------------------------------------------------
-     */
-    app.put('/users/:email', async (req, res) => {
-        const email = req.params.email
-        const user = req.body
-        const query = { email: email }
-        const options = { upsert: true }
-        const updateDoc = {
-          $set: user,
-        }
-        const result = await usersCollection.updateOne(query, updateDoc, options)
-        res.send(result)
-      })
-
-       /**
-     * ---------------------------------------------------
-     * Task Three - Set role -------> admin or instructor
-     * TODO : Verify jwt and admin
-     * ---------------------------------------------------
-     */
-    app.patch('/users/:email', async (req, res) => {
-        const email = req.params.email
-        const getRole = req.query.role
-        const query = { email: email }
-        const updateDoc = {
-          $set: {
-            role : getRole
-          },
-        }
-        const result = await usersCollection.updateOne(query, updateDoc)
-        res.send(result)
-      })
-
-      
-      /**
-     * ---------------------------------------------------
-     * Task Four - Get the Instructors
-     * ---------------------------------------------------
-     */
-    app.get('/instructors', async (req, res) => {
-        const query = {role : "instructor"}
-        const result = await usersCollection.find(query).toArray()
-        res.send(result)
-      })
+        const usersCollection = client.db("assSunnah").collection("users");
+        const classessCollection = client.db("assSunnah").collection("classess");
 
 
+        /**
+         * ---------------------------------------------------
+         * Task One - Get the all USERS from data base
+         * TODO : Verify jwt and admin
+         * ---------------------------------------------------
+         */
+        app.get('/users', async (req, res) => {
+            const result = await usersCollection.find().toArray()
+            res.send(result)
+        })
 
-      /**
-     * ---------------------------------------------------
-     * Task Five - Get the Classess if it is approved by admin
-     * ---------------------------------------------------
-     */
-    app.get('/classess', async (req, res) => {
-        const query = {status : "approved"}
-        const result = await classessCollection.find(query).toArray()
-        res.send(result)
-      })
+        /**
+      * ---------------------------------------------------
+      * Task Two - SAVED USERS
+      * ---------------------------------------------------
+      */
+        app.put('/users/:email', async (req, res) => {
+            const email = req.params.email
+            const user = req.body
+            const query = { email: email }
+            const options = { upsert: true }
+            const updateDoc = {
+                $set: user,
+            }
+            const result = await usersCollection.updateOne(query, updateDoc, options)
+            res.send(result)
+        })
 
-      /**
-     * ---------------------------------------------------
-     * Task Six - Get all the Classess whics post from the instructors
-     * TODO : Verify Admin
-     * ---------------------------------------------------
-     */
-    app.get('/admin/classess', async (req, res) => {
-        const result = await classessCollection.find().toArray()
-        res.send(result)
-      })
+        /**
+      * ---------------------------------------------------
+      * Task Three - Set role -------> admin or instructor
+      * TODO : Verify jwt and admin
+      * ---------------------------------------------------
+      */
+        app.patch('/users/:email', async (req, res) => {
+            const email = req.params.email
+            const getRole = req.query.role
+            const query = { email: email }
+            const updateDoc = {
+                $set: {
+                    role: getRole
+                },
+            }
+            const result = await usersCollection.updateOne(query, updateDoc)
+            res.send(result)
+        })
 
+
+        /**
+       * ---------------------------------------------------
+       * Task Four - Get the Instructors
+       * ---------------------------------------------------
+       */
+        app.get('/instructors', async (req, res) => {
+            const query = { role: "instructor" }
+            const result = await usersCollection.find(query).toArray()
+            res.send(result)
+        })
+
+
+
+        /**
+       * ---------------------------------------------------
+       * Task Five - Get the Classess if it is approved by admin
+       * ---------------------------------------------------
+       */
+        app.get('/classess', async (req, res) => {
+            const query = { status: "approved" }
+            const result = await classessCollection.find(query).toArray()
+            res.send(result)
+        })
+
+        /**
+       * ---------------------------------------------------
+       * Task Six - Get all the Classess whics post from the instructors
+       * TODO : Verify Admin
+       * ---------------------------------------------------
+       */
+        app.get('/admin/classess', async (req, res) => {
+            const result = await classessCollection.find().toArray()
+            res.send(result)
+        })
 
 
         /**
@@ -124,31 +123,52 @@ async function run() {
      * TODO : Verify jwt and admin
      * ---------------------------------------------------
      */
-    app.patch('/instructors/classess/:classId', async (req, res) => {
-        const classId = req.params.classId
-        const status = req.query.status
-        const query = { _id: new ObjectId(classId) }
-        const updateDoc = {
-          $set: {
-            status : status
-          },
-        }
-        const result = await classessCollection.updateOne(query, updateDoc)
-        res.send(result)
-      })
+        app.patch('/admin/instructors/classess/:classId', async (req, res) => {
+            const classId = req.params.classId
+            const status = req.query.status
+            const feedback = req.query.feedback
+            const query = { _id: new ObjectId(classId) }
+            let updateDoc = {}
+
+
+            if (feedback && status && status === 'denied') {
+
+                updateDoc = {
+                    $set: {
+                        status: status,
+                        feedback: feedback
+                    },
+                }
+
+                const result = await classessCollection.updateOne(query, updateDoc)
+                return res.send(result)
+
+                console.log('feedback', feedback, 'status', status);
+
+            }
+
+            updateDoc = {
+                $set: {
+                    status: status
+                },
+            }
+
+            const result = await classessCollection.updateOne(query, updateDoc)
+            res.send(result)
+        })
 
 
 
-       /**
-     * ---------------------------------------------------
-     * Task Five - Add Classess only for instructors
-     * ---------------------------------------------------
-     */
-    app.post('instructors/classess', async (req, res) => {
-        const classInformation = req.body
-        const result = await classessCollection.insertOne(classInformation)
-        res.send(result)
-      })
+        /**
+      * ---------------------------------------------------
+      * Task Five - Add Classess only for instructors
+      * ---------------------------------------------------
+      */
+        app.post('instructors/classess', async (req, res) => {
+            const classInformation = req.body
+            const result = await classessCollection.insertOne(classInformation)
+            res.send(result)
+        })
 
 
 
@@ -157,24 +177,24 @@ async function run() {
 
 
 
-    
-    
 
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
-  }
+
+
+        // Send a ping to confirm a successful connection
+        await client.db("admin").command({ ping: 1 });
+        console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    } finally {
+        // Ensures that the client will close when you finish/error
+        // await client.close();
+    }
 }
 run().catch(console.dir);
 
 
 app.get('/', (req, res) => {
-  res.send('Server is running')
+    res.send('Server is running')
 })
 
 app.listen(port, () => {
-  console.log(`The server is running on port ${port}`);
+    console.log(`The server is running on port ${port}`);
 })
