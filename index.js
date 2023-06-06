@@ -31,6 +31,7 @@ async function run() {
 
         const usersCollection = client.db("assSunnah").collection("users");
         const classessCollection = client.db("assSunnah").collection("classess");
+        const bookedClassessCollection = client.db("assSunnah").collection("bookedClassess");
 
 
         /**
@@ -131,7 +132,7 @@ async function run() {
             let updateDoc = {}
 
             if (feedback) {
-                
+
                 updateDoc = {
                     $set: {
                         feedback: feedback
@@ -154,15 +155,83 @@ async function run() {
         })
 
 
+        
+        /**
+       * ---------------------------------------------------
+       * Task Eight - Get the Classess whicj was added by the self users
+       * TODO : Jwt
+       * ---------------------------------------------------
+       */
+        app.get('/instructor/myAddeddClass/:email', async (req, res) => {
+            
+            const email = req.params.email
+            const query = { instructor_email: email }
+            const result = await classessCollection.find(query).toArray()
+            res.send(result)
+
+        })
 
         /**
       * ---------------------------------------------------
-      * Task Five - Add Classess only for instructors
+      * Task Nine - Add Classess only for instructors
       * ---------------------------------------------------
       */
         app.post('instructors/classess', async (req, res) => {
             const classInformation = req.body
             const result = await classessCollection.insertOne(classInformation)
+            res.send(result)
+        })
+    
+        /**
+      * ---------------------------------------------------
+      * Task Ten - Updated the classess instructors addeed
+      * ---------------------------------------------------
+      */
+        app.put('/instructors/classess/:classId', async (req, res) => {
+            
+            const classId = req.params.classId
+            const query = { _id: new ObjectId(classId) }
+            const {image,class_name,instructor_name,instructor_email,available_seats,price} = req.body
+           
+            const updateDoc = {
+                $set: {
+                    image,
+                    class_name,
+                    available_seats,
+                    price
+                },
+            }
+
+            const result = await classessCollection.updateOne(query, updateDoc)
+            res.send(result)
+
+        })
+
+
+
+         /**
+       * ---------------------------------------------------
+       * Task Eleven - Get the Classess whicj was added by the self users
+       * TODO : Jwt
+       * ---------------------------------------------------
+       */
+         app.get('/student/booked/classess/:email', async (req, res) => {
+            
+            const email = req.params.email
+            const query = { userEmail: email }
+            const result = await bookedClassessCollection.find(query).toArray()
+            res.send(result)
+
+        })
+
+        /**
+      * ---------------------------------------------------
+      * Task Twoelve - add to the booked section by the users. user can added the classes.
+      * ---------------------------------------------------
+      */
+        app.post('/student/booked/classess', async (req, res) => {
+            const classInformation = req.body
+            const result = await bookedClassessCollection.insertOne(classInformation)
             res.send(result)
         })
 
