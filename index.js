@@ -60,6 +60,28 @@ async function run() {
         res.send(result)
       })
 
+       /**
+     * ---------------------------------------------------
+     * Task Three - Set role -------> admin or instructor
+     * TODO : Verify jwt and admin
+     * ---------------------------------------------------
+     */
+    app.patch('/users/:email', async (req, res) => {
+        const email = req.params.email
+        const getRole = req.query.role
+        const query = { email: email }
+        const updateDoc = {
+          $set: {
+            role : getRole
+          },
+        }
+        const result = await usersCollection.updateOne(query, updateDoc)
+        res.send(result)
+      })
+
+
+
+
 
 
 
