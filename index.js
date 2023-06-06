@@ -30,7 +30,6 @@ async function run() {
     await client.connect();
 
     const usersCollection = client.db("assSunnah").collection("users");
-    const instructorsCollection = client.db("assSunnah").collection("instructors");
     const classessCollection = client.db("assSunnah").collection("classess");
     
 
@@ -84,14 +83,48 @@ async function run() {
       
       /**
      * ---------------------------------------------------
-     * Task For - Get the Instructors
-     * TODO : Verify jwt
+     * Task Four - Get the Instructors
      * ---------------------------------------------------
      */
     app.get('/instructors', async (req, res) => {
-
         const query = {role : "instructor"}
         const result = await usersCollection.find(query).toArray()
+        res.send(result)
+      })
+
+
+
+      /**
+     * ---------------------------------------------------
+     * Task Five - Get the Classess if it is approved by admin
+     * ---------------------------------------------------
+     */
+    app.get('classess', async (req, res) => {
+        const query = {statuss : "approved"}
+        const result = await classessCollection.find(query).toArray()
+        res.send(result)
+      })
+
+      /**
+     * ---------------------------------------------------
+     * Task Six - Get all the Classess whics post from the instructors
+     * TODO : Verify Admin
+     * ---------------------------------------------------
+     */
+    app.get('/admin/classess', async (req, res) => {
+        const result = await classessCollection.find().toArray()
+        res.send(result)
+      })
+
+
+       /**
+     * ---------------------------------------------------
+     * Task Five - Add Classess only for instructors
+     * ---------------------------------------------------
+     */
+    app.post('instructors/classess', async (req, res) => {
+        const classInformation = req.body
+        const result = await classessCollection.insertOne(classInformation)
         res.send(result)
       })
 
