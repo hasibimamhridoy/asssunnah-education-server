@@ -99,8 +99,8 @@ async function run() {
      * Task Five - Get the Classess if it is approved by admin
      * ---------------------------------------------------
      */
-    app.get('classess', async (req, res) => {
-        const query = {statuss : "approved"}
+    app.get('/classess', async (req, res) => {
+        const query = {status : "approved"}
         const result = await classessCollection.find(query).toArray()
         res.send(result)
       })
@@ -115,6 +115,28 @@ async function run() {
         const result = await classessCollection.find().toArray()
         res.send(result)
       })
+
+
+
+        /**
+     * ---------------------------------------------------
+     * Task Seven - Approved / declain the classsess which was added by the instructors ------->
+     * TODO : Verify jwt and admin
+     * ---------------------------------------------------
+     */
+    app.patch('/instructors/classess/:classId', async (req, res) => {
+        const classId = req.params.classId
+        const status = req.query.status
+        const query = { _id: new ObjectId(classId) }
+        const updateDoc = {
+          $set: {
+            status : status
+          },
+        }
+        const result = await classessCollection.updateOne(query, updateDoc)
+        res.send(result)
+      })
+
 
 
        /**
