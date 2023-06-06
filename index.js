@@ -3,6 +3,7 @@ const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 require('dotenv').config()
+const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY)
 const port = process.env.PORT || 5000;
 
 // middleware
@@ -33,6 +34,7 @@ async function run() {
         const classessCollection = client.db("assSunnah").collection("classess");
         const bookedClassessCollection = client.db("assSunnah").collection("bookedClassess");
         const enrolledClassessCollection = client.db("assSunnah").collection("EnrolledClassess");
+        const paymentCollection = client.db("assSunnah").collection("payments");
 
 
         /**
@@ -156,7 +158,7 @@ async function run() {
         })
 
 
-        
+
         /**
        * ---------------------------------------------------
        * Task Eight - Get the Classess whicj was added by the self users
@@ -164,7 +166,7 @@ async function run() {
        * ---------------------------------------------------
        */
         app.get('/instructor/myAddeddClass/:email', async (req, res) => {
-            
+
             const email = req.params.email
             const query = { instructor_email: email }
             const result = await classessCollection.find(query).toArray()
@@ -182,18 +184,18 @@ async function run() {
             const result = await classessCollection.insertOne(classInformation)
             res.send(result)
         })
-    
+
         /**
       * ---------------------------------------------------
       * Task Ten - Updated the classess instructors addeed
       * ---------------------------------------------------
       */
         app.put('/instructors/classess/:classId', async (req, res) => {
-            
+
             const classId = req.params.classId
             const query = { _id: new ObjectId(classId) }
-            const {image,class_name,instructor_name,instructor_email,available_seats,price} = req.body
-           
+            const { image, class_name, instructor_name, instructor_email, available_seats, price } = req.body
+
             const updateDoc = {
                 $set: {
                     image,
@@ -210,14 +212,14 @@ async function run() {
 
 
 
-         /**
-       * ---------------------------------------------------
-       * Task Eleven - Get the Classess whicj was added by the self users
-       * TODO : Jwt
-       * ---------------------------------------------------
-       */
-         app.get('/student/booked/classess/:email', async (req, res) => {
-            
+        /**
+      * ---------------------------------------------------
+      * Task Eleven - Get the Classess whicj was added by the self users
+      * TODO : Jwt
+      * ---------------------------------------------------
+      */
+        app.get('/student/booked/classess/:email', async (req, res) => {
+
             const email = req.params.email
             const query = { userEmail: email }
             const result = await bookedClassessCollection.find(query).toArray()
@@ -237,13 +239,13 @@ async function run() {
         })
 
 
-          /**
-       * ---------------------------------------------------
-       * Task Thirteen - Delete the Classess which was added by the self users
-       * TODO : Jwt
-       * ---------------------------------------------------
-       */
-          app.delete('/student/booked/classess/:id', async (req, res) => {
+        /**
+     * ---------------------------------------------------
+     * Task Thirteen - Delete the Classess which was added by the self users
+     * TODO : Jwt
+     * ---------------------------------------------------
+     */
+        app.delete('/student/booked/classess/:id', async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
             const result = await bookedClassessCollection.deleteOne(query)
@@ -252,14 +254,14 @@ async function run() {
         })
 
 
-          /**
-       * ---------------------------------------------------
-       * Task Eleven - Get the enrolledd Classess whicj was enrolled self users
-       * TODO : Jwt
-       * ---------------------------------------------------
-       */
-          app.get('/student/enrolled/classess/:email', async (req, res) => {
-            
+        /**
+     * ---------------------------------------------------
+     * Task Eleven - Get the enrolledd Classess whicj was enrolled self users
+     * TODO : Jwt
+     * ---------------------------------------------------
+     */
+        app.get('/student/enrolled/classess/:email', async (req, res) => {
+
             const email = req.params.email
             const query = { userEmail: email }
             const result = await enrolledClassessCollection.find(query).toArray()
@@ -273,33 +275,66 @@ async function run() {
       * Task Fourteen - when user payment complete then it will work and he enrolled the classess.
       * ---------------------------------------------------
       */
-          app.post('/student/enrolled/classess', async (req, res) => {
+        app.post('/student/enrolled/classess', async (req, res) => {
             const classInformation = req.body
             const result = await enrolledClassessCollection.insertOne(classInformation)
             res.send(result)
         })
 
+        /**
+      * ---------------------------------------------------
+      * Task Fifteen - when user payment complete then it will work and he enrolled the classess.
+      * ---------------------------------------------------
+      */
+        app.post('/payments', async (req, res) => {
+            const payment = req.body;
+            const insertResult = await paymentCollection.insertOne(payment);
+
+            const query = { _id: { $in: payment.cartItems.map(id => new ObjectId(id)) } }
+            const deleteResult = await cartCollection.deleteMany(query)
+
+            res.send({ insertResult, deleteResult });
+        })
+
 
         /**
        * ---------------------------------------------------
-       * Task Eleven - Get the enrolledd Classess whicj was enrolled self users
+       * Task Sixteen - Get the enrolledd Classess whicj was enrolled self users
        * TODO : Jwt
        * ---------------------------------------------------
        */
-           app.get('/student/payment/history/:email', async (req, res) => {
-            
+        app.get('/student/payment/history/:email', async (req, res) => {
+
             const email = req.params.email
             const query = { userEmail: email }
-            const sort = {paymentData : -1}
+            const sort = { paymentData: -1 }
             const result = await enrolledClassessCollection.find(query).sort(sort).toArray()
             res.send(result)
 
         })
 
-     
 
+        /**
+      * ---------------------------------------------------
+      * Task Seventeen - Get the enrolledd Classess whicj was enrolled self users
+      * TODO : Jwt
+      * ---------------------------------------------------
+      */
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+            const { price } = req.body;
+            const amount = price * 100;
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            });
 
+            console.log(paymentIntent);
 
+            res.send({
+                clientSecret: paymentIntent.client_secret
+            })
+        })
 
 
 
