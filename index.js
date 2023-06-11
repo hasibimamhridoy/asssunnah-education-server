@@ -7,7 +7,12 @@ const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY)
 const port = process.env.PORT || 5000;
 
 // middleware
-app.use(cors());
+const corsOptions = {
+    origin: '*',
+    credentials: true,
+    optionSuccessStatus: 200,
+}
+app.use(cors(corsOptions))
 app.use(express.json());
 
 
@@ -15,7 +20,6 @@ app.use(express.json());
 //all middle ware
 const verifyJWT = (req, res, next) => {
     const authorization = req.headers.authorization;
-    console.log(authorization);
     if (!authorization) {
         return res.status(401).send({ error: true, message: 'unauthorized access' });
     }
@@ -46,11 +50,7 @@ const client = new MongoClient(uri, {
     }
 });
 
-app.post('/jwt', (req, res) => {
-    const user = req.body;
-    const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '1h' })
-    res.send({ token })
-})
+
 
 
 async function run() {
@@ -64,24 +64,33 @@ async function run() {
         const enrolledClassessCollection = client.db("assSunnah").collection("EnrolledClassess");
         const paymentCollection = client.db("assSunnah").collection("payments");
 
+
         const verifyAdmin = async (req, res, next) => {
             const email = req.decoded.email;
             const query = { email: email }
             const user = await usersCollection.findOne(query);
             if (user?.role !== 'admin') {
-              return res.status(403).send({ error: true, message: 'forbidden message' });
+                return res.status(403).send({ error: true, message: 'forbidden message' });
             }
             next();
-          }
+        }
+        const verifyInstructors = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email }
+            const user = await usersCollection.findOne(query);
+            if (user?.role !== 'instructor') {
+                return res.status(403).send({ error: true, message: 'forbidden message' });
+            }
+            next();
+        }
 
-
-
-        app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+        //get if the user is admin
+        app.get('/users/admin/:email',async (req, res) => {
             const email = req.params.email;
 
-            if (req.decoded.email !== email) {
-                return res.send({ admin: false })
-            }
+            // if (req.decoded.email !== email) {
+            //     return res.send({ admin: false })
+            // }
 
             const query = { email: email }
             const user = await usersCollection.findOne(query);
@@ -89,15 +98,35 @@ async function run() {
             console.log(result);
             res.send(result);
         })
+        //get if the user is instructors
+        app.get('/users/instructor/:email', async (req, res) => {
+            const email = req.params.email;
 
+            // if (req.decoded.email !== email) {
+            //     return res.send({ instructor: false })
+            // }
+
+            const query = { email: email }
+            const user = await usersCollection.findOne(query);
+            const result = { instructor: user?.role === 'instructor' }
+            res.send(result);
+        })
+
+
+        //Here is the send token jwt
+        app.post('/jwt', (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '1h' })
+            res.send({ token })
+        })
 
         /**
          * ---------------------------------------------------
          * Task One - Get the all USERS from data base
-         * TODO : Verify jwt and admin
+         * Done
          * ---------------------------------------------------
          */
-        app.get('/users', verifyJWT,verifyAdmin, async (req, res) => {
+        app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
             const result = await usersCollection.find().toArray()
             res.send(result)
         })
@@ -122,12 +151,12 @@ async function run() {
         /**
       * ---------------------------------------------------
       * Task Three - Set role -------> admin or instructor
-      * TODO : Verify jwt and admin
+      * Done
       * ---------------------------------------------------
       */
-        app.patch('/users/:email', async (req, res) => {
+        app.patch('/users/:email', verifyJWT,verifyAdmin, async (req, res) => {
             const email = req.params.email
-            const getRole = req.query.role
+            const getRole = req.body.role
             const query = { email: email }
             const updateDoc = {
                 $set: {
@@ -136,6 +165,22 @@ async function run() {
             }
             const result = await usersCollection.updateOne(query, updateDoc)
             res.send(result)
+        })
+
+
+        /**
+               * ---------------------------------------------------
+               * Task Four - Deleted the user
+               * Done
+               * ---------------------------------------------------
+               */
+
+        app.delete('/users/:id', verifyJWT,verifyAdmin, async (req, res) => {
+            const id = req.params.id
+            const query = { _id: new ObjectId(id) }
+            const result = await usersCollection.deleteOne(query)
+            res.send(result)
+
         })
 
 
@@ -159,17 +204,30 @@ async function run() {
        */
         app.get('/classess', async (req, res) => {
             const query = { status: "approved" }
-            const result = await classessCollection.find(query).toArray()
+            const sort = {total_enrolled: -1}
+            const result = await classessCollection.find(query).sort(sort).toArray()
+            res.send(result)
+        })
+
+        /**
+       * ---------------------------------------------------
+       * Task Five - Get the instructor if it is approved by admin
+       * ---------------------------------------------------
+       */
+        app.get('/instructors', async (req, res) => {
+            const query = { role: "instructor" }
+            const sort = {total_enrolled: -1}
+            const result = await usersCollection.find(query).toArray()
             res.send(result)
         })
 
         /**
        * ---------------------------------------------------
        * Task Six - Get all the Classess whics post from the instructors
-       * TODO : Verify Admin
+       * Done
        * ---------------------------------------------------
        */
-        app.get('/admin/classess', async (req, res) => {
+        app.get('/admin/classess',verifyJWT,verifyAdmin, async (req, res) => {
             const result = await classessCollection.find().toArray()
             res.send(result)
         })
@@ -178,13 +236,13 @@ async function run() {
         /**
      * ---------------------------------------------------
      * Task Seven - Approved / declain the classsess which was added by the instructors ------->
-     * TODO : Verify jwt and admin
+     * Done
      * ---------------------------------------------------
      */
-        app.patch('/admin/instructors/classess/:classId', async (req, res) => {
+        app.patch('/admin/instructors/classess/:classId',verifyJWT,verifyAdmin, async (req, res) => {
             const classId = req.params.classId
-            const status = req.query.status
             const feedback = req.body.feedback
+            const status = req.body.status
             const query = { _id: new ObjectId(classId) }
             let updateDoc = {}
 
@@ -216,10 +274,10 @@ async function run() {
         /**
        * ---------------------------------------------------
        * Task Eight - Get the Classess whicj was added by the self users
-       * TODO : Jwt
+       * Done
        * ---------------------------------------------------
        */
-        app.get('/instructor/myAddeddClass/:email', async (req, res) => {
+        app.get('/instructor/myAddeddClass/:email',verifyJWT,verifyInstructors, async (req, res) => {
 
             const email = req.params.email
             const query = { instructor_email: email }
@@ -231,9 +289,10 @@ async function run() {
         /**
       * ---------------------------------------------------
       * Task Nine - Add Classess only for instructors
+      * Done
       * ---------------------------------------------------
       */
-        app.post('instructors/classess', async (req, res) => {
+        app.post('/instructors/classess',verifyJWT,verifyInstructors, async (req, res) => {
             const classInformation = req.body
             const result = await classessCollection.insertOne(classInformation)
             res.send(result)
@@ -242,13 +301,17 @@ async function run() {
         /**
       * ---------------------------------------------------
       * Task Ten - Updated the classess instructors addeed
+      * Done
       * ---------------------------------------------------
       */
-        app.put('/instructors/classess/:classId', async (req, res) => {
+        app.put('/instructors/classess/:classId',verifyJWT,verifyInstructors, async (req, res) => {
 
             const classId = req.params.classId
+            console.log('hitting',classId);
             const query = { _id: new ObjectId(classId) }
             const { image, class_name, instructor_name, instructor_email, available_seats, price } = req.body
+
+            console.log(req.body);
 
             const updateDoc = {
                 $set: {
@@ -264,15 +327,30 @@ async function run() {
 
         })
 
+         /**
+      * ---------------------------------------------------
+      * Task Eleven - Get the single Classe which was added by the instructor
+      * Done
+      * ---------------------------------------------------
+      */
+         app.get('/instructor/classess/:id',verifyJWT,verifyInstructors, async (req, res) => {
+
+            const id = req.params.id
+            const query = { _id: new ObjectId(id)}
+            const result = await classessCollection.findOne(query)
+            res.send(result)
+
+        })
+
 
 
         /**
       * ---------------------------------------------------
-      * Task Eleven - Get the Classess whicj was added by the self users
-      * TODO : Jwt
+      * Task Eleven - Get the booked Classess which was added by the student users
+      * Done
       * ---------------------------------------------------
       */
-        app.get('/student/booked/classess/:email', async (req, res) => {
+        app.get('/student/booked/classess/:email',verifyJWT, async (req, res) => {
 
             const email = req.params.email
             const query = { userEmail: email }
@@ -280,41 +358,29 @@ async function run() {
             res.send(result)
 
         })
-
         /**
       * ---------------------------------------------------
-      * Task Twoelve - add to the booked section by the users. user can added the classes.
+      * Task Eleven - Get the Payment History for users
+      * Done
       * ---------------------------------------------------
       */
-        app.post('/student/booked/classess', async (req, res) => {
-            const classInformation = req.body
-            const result = await bookedClassessCollection.insertOne(classInformation)
-            res.send(result)
-        })
+        app.get('/student/payment/history/:email',verifyJWT, async (req, res) => {
 
-
-        /**
-     * ---------------------------------------------------
-     * Task Thirteen - Delete the Classess which was added by the self users
-     * TODO : Jwt
-     * ---------------------------------------------------
-     */
-        app.delete('/student/booked/classess/:id', async (req, res) => {
-            const id = req.params.id
-            const query = { _id: new ObjectId(id) }
-            const result = await bookedClassessCollection.deleteOne(query)
+            const email = req.params.email
+            const query = { email: email }
+            const sort = {date : -1}
+            const result = await paymentCollection.find(query).sort(sort).toArray()
             res.send(result)
 
         })
 
-
         /**
-     * ---------------------------------------------------
-     * Task Eleven - Get the enrolledd Classess whicj was enrolled self users
-     * TODO : Jwt
-     * ---------------------------------------------------
-     */
-        app.get('/student/enrolled/classess/:email', async (req, res) => {
+      * ---------------------------------------------------
+      * Task Eleven - Get the Enrolled class by users
+      * Done
+      * ---------------------------------------------------
+      */
+        app.get('/student/enrolled/classess/:email',verifyJWT, async (req, res) => {
 
             const email = req.params.email
             const query = { userEmail: email }
@@ -326,34 +392,122 @@ async function run() {
 
         /**
       * ---------------------------------------------------
+      * Need to check if the booked item already in booked collecktion
+      * Done
+      * ---------------------------------------------------
+      */
+        app.get('/student/isBooked/classess/:email', async (req, res) => {
+            try {
+              const email = req.params.email;
+              const query = {userEmail : email}
+              const result = await bookedClassessCollection.find(query).toArray();
+          
+              const disabledIds = result.map(res=>res.courseId)
+              console.log(disabledIds);
+
+              if (result) {
+                res.send(disabledIds);
+              } else {
+                res.status(404).send('Item not found');
+              }
+            } catch (error) {
+              res.status(500).send('Error retrieving item');
+            }
+          });
+        /**
+      * ---------------------------------------------------
+      * Need to check if Already enrolled the classss 
+      * Done
+      * ---------------------------------------------------
+      */
+        app.get('/student/clasess/alreadyEnrolled/:email', async (req, res) => {
+            try {
+              const email = req.params.email;
+              const query = {userEmail : email}
+              const result = await enrolledClassessCollection.find(query).toArray();
+        
+              const disabledIds = result.map(res=>res.courseId)
+              console.log(disabledIds);
+
+              if (result) {
+                res.send(disabledIds);
+              } else {
+                res.status(404).send('Item not found');
+              }
+            } catch (error) {
+              res.status(500).send('Error retrieving item');
+            }
+          });
+
+        /**
+      * ---------------------------------------------------
+      * Task Twoelve - add to the booked section by the users. user can added the classes.
+      * Done
+      * ---------------------------------------------------
+      */
+        app.post('/student/booked/classess', async (req, res) => {
+            const classInformation = req.body
+            const result = await bookedClassessCollection.insertOne(classInformation)
+            res.send(result)
+        })
+
+
+        /**
+     * ---------------------------------------------------
+     * Task Thirteen - Delete the Booked Classess which was added by the self users
+     * Done
+     * ---------------------------------------------------
+     */
+        app.delete('/student/booked/classess/:id',verifyJWT, async (req, res) => {
+            const id = req.params.id
+            const query = { _id: new ObjectId(id) }
+            const result = await bookedClassessCollection.deleteOne(query)
+            res.send(result)
+
+        })
+
+
+        /**
+     * ---------------------------------------------------
+     * Task Eleven - Get the enrolledd Classess whicj was enrolled self users
+     * Done
+     * ---------------------------------------------------
+     */
+        app.get('/student/enrolled/classess/:email',verifyJWT, async (req, res) => {
+
+            const email = req.params.email
+            const query = { userEmail: email }
+            const result = await enrolledClassessCollection.find(query).toArray()
+            res.send(result)
+
+        })
+
+        //get booked single data for payment price
+        app.get('/student/booked/classess/paymentPrice/:id', async (req, res) => {
+
+            const id = req.params.id
+            const query = { _id: new ObjectId(id)}
+            const result = await bookedClassessCollection.findOne(query)
+            res.send(result)
+
+        })
+
+
+        /**
+      * ---------------------------------------------------
       * Task Fourteen - when user payment complete then it will work and he enrolled the classess.
       * ---------------------------------------------------
       */
-        app.post('/student/enrolled/classess', async (req, res) => {
+        app.post('/student/enrolled/classess',verifyJWT, async (req, res) => {
             const classInformation = req.body
             const result = await enrolledClassessCollection.insertOne(classInformation)
             res.send(result)
         })
 
-        /**
-      * ---------------------------------------------------
-      * Task Fifteen - when user payment complete then it will work and he enrolled the classess.
-      * ---------------------------------------------------
-      */
-        app.post('/payments', async (req, res) => {
-            const payment = req.body;
-            const insertResult = await paymentCollection.insertOne(payment);
-
-            const query = { _id: { $in: payment.cartItems.map(id => new ObjectId(id)) } }
-            const deleteResult = await cartCollection.deleteMany(query)
-
-            res.send({ insertResult, deleteResult });
-        })
-
-
+     
         /**
        * ---------------------------------------------------
-       * Task Sixteen - Get the enrolledd Classess whicj was enrolled self users
+       * Task Sixteen - Get tPayment History
        * TODO : Jwt
        * ---------------------------------------------------
        */
@@ -361,7 +515,7 @@ async function run() {
 
             const email = req.params.email
             const query = { userEmail: email }
-            const sort = { paymentData: -1 }
+            const sort = { date: 1 }
             const result = await enrolledClassessCollection.find(query).sort(sort).toArray()
             res.send(result)
 
@@ -387,6 +541,56 @@ async function run() {
                 clientSecret: paymentIntent.client_secret
             })
         })
+
+
+        // payment related api
+       app.post('/payments/success/:id', verifyJWT, async(req, res) =>{
+        const payment = req.body;
+        const id = req.params.id
+        const insertResult = await paymentCollection.insertOne(payment);
+        const query = {_id: new ObjectId(id) }
+        const deleteResult = await bookedClassessCollection.deleteOne(query)
+  
+        res.send({ insertResult, deleteResult});
+      })
+
+
+      //get data to count enrolled student
+
+      app.get('/student/enrolled/count/:courseId', async (req, res) => {
+
+        const courseId = req.params.courseId
+        const query = { courseId: courseId }
+        const result = await enrolledClassessCollection.countDocuments(query)
+        res.send({result})
+    })
+
+
+    /**
+      * ---------------------------------------------------
+      * Task Three - Set role -------> admin or instructor
+      * TODO : Verify jwt and admin
+      * ---------------------------------------------------
+      */
+    app.patch('/student/enrolled/count/:courseId', async (req, res) => {
+        const courseId = req.params.courseId
+        const enrolledCount = req.body
+        console.log(enrolledCount);
+        const query = { _id: new ObjectId(courseId) }
+        const updateDoc = {
+            $set: {
+                available_seats:enrolledCount.available_seats_remaining,
+                total_enrolled:enrolledCount.totalEnrolledCount,
+                
+            },
+        }
+        const result = await classessCollection.updateOne(query, updateDoc)
+        res.send(result)
+    })
+
+
+
+
 
 
 
